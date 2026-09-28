@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공학용 계산기</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        background: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .calculator {
+        width: min(650px, 100%);
+    }
+
+    .display {
+        height: 72px;
+        border: 1px solid #d5d5d5;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 16px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .display-value {
+        width: 100%;
+        text-align: right;
+        font-size: clamp(28px, 5vw, 34px);
+        font-weight: 500;
+        color: #222;
+        white-space: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .display-value::-webkit-scrollbar {
+        display: none;
+    }
+
+    .keypad {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+    }
+
+    button {
+        height: 43px;
+        border: 0;
+        border-radius: 22px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: transform 0.08s ease, filter 0.08s ease;
+        color: #111;
+        background: #f2f3f4;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+        transform: scale(0.96);
+    }
+
+    button:hover {
+        filter: brightness(0.97);
+    }
+
+    .function {
+        background: #e3edff;
+    }
+
+    .operator {
+        background: #e3edff;
+        font-size: 17px;
+    }
+
+    .equals {
+        background: #3d72ed;
+        color: white;
+        font-size: 18px;
+    }
+
+    .mode {
+        color: #356bdc;
+    }
+
+    .history {
+        position: relative;
+        height: 0;
+    }
+
+    .history-button {
+        position: absolute;
+        left: 10px;
+        top: -61px;
+        width: 30px;
+        height: 30px;
+        background: transparent;
+        font-size: 20px;
+        color: #555;
+        padding: 0;
+    }
+
+    .history-panel {
+        display: none;
+        position: absolute;
+        z-index: 10;
+        top: 52px;
+        left: 0;
+        width: min(320px, 90vw);
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 12px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 14px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+
+    .history-panel.show {
+        display: block;
+    }
+
+    .history-title {
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #555;
+    }
+
+    .history-item {
+        padding: 8px 4px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .history-item:last-child {
+        border-bottom: 0;
+    }
+
+    .history-expression {
+        color: #777;
+        margin-bottom: 3px;
+    }
+
+    .history-result {
+        font-size: 15px;
+        color: #222;
+    }
+
+    @media (max-width: 520px) {
+        body {
+            padding: 10px;
+            align-items: flex-start;
+            padding-top: 20px;
+        }
+
+        .display {
+            height: 68px;
+        }
+
+        button {
+            height: 44px;
+            font-size: 12px;
+        }
+
+        .operator {
+            font-size: 16px;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .keypad {
+            gap: 3px;
+        }
+
+        button {
+            height: 42px;
+            font-size: 11px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="calculator">
+
+    <div class="history">
+        <button class="history-button" id="historyButton" aria-label="계산 기록">◔</button>
+
+        <div class="history-panel" id="historyPanel">
+            <div class="history-title">계산 기록</div>
+            <div id="historyList">계산 기록이 없습니다.</div>
+        </div>
+    </div>
+
+    <div class="display">
+        <div class="display-value" id="display">0</div>
+    </div>
+
+    <div class="keypad">
+
+        <!-- 1행 -->
+        <button class="function mode" data-action="deg">Deg</button>
+        <button class="function mode" data-action="rad">Rad</button>
+        <button class="function" data-action="factorial">x!</button>
+        <button class="function" data-value="(">(</button>
+        <button class="function" data-value=")">)</button>
+        <button class="function" data-action="percent">%</button>
+        <button class="function" data-action="clear">AC</button>
+
+        <!-- 2행 -->
+        <button class="function" data-action="inv">Inv</button>
+        <button class="function" data-action="sin">sin</button>
+        <button class="function" data-action="ln">ln</button>
+        <button data-value="7">7</button>
+        <button data-value="8">8</button>
+        <button data-value="9">9</button>
+        <button class="operator" data-value="/">÷</button>
+
+        <!-- 3행 -->
+        <button class="function" data-value="pi">π</button>
+        <button class="function" data-action="cos">cos</button>
+        <button class="function" data-action="log">log</button>
+        <button data-value="4">4</button>
+        <button data-value="5">5</button>
+        <button data-value="6">6</button>
+        <button class="operator" data-value="*">×</button>
+
+        <!-- 4행 -->
+        <button class="function" data-value="e">e</button>
+        <button class="function" data-action="tan">tan</button>
+        <button class="function" data-action="sqrt">√</button>
+        <button data-value="1">1</button>
+        <button data-value="2">2</button>
+        <button data-value="3">3</button>
+        <button class="operator" data-value="-">−</button>
+
+        <!-- 5행 -->
+        <button class="function" data-action="ans">Ans</button>
+        <button class="function" data-action="exp">EXP</button>
+        <button class="function" data-value="^">xʸ</button>
+        <button data-value="0">0</button>
+        <button data-value=".">.</button>
+        <button class="equals" data-action="equals">=</button>
+        <button class="operator" data-value="+">+</button>
+
+    </div>
+</div>
+
+<script>
+(() => {
+
+    const display = document.getElementById("display");
+    const buttons = document.querySelectorAll("button[data-value], button[data-action]");
+    const historyButton = document.getElementById("historyButton");
+    const historyPanel = document.getElementById("historyPanel");
+    const historyList = document.getElementById("historyList");
+
+    let expression = "";
+    let lastAnswer = 0;
+    let angleMode = "DEG";
+    let inverseMode = false;
+    let history = [];
+
+    function updateDisplay(value = expression || "0") {
+        display.textContent = value;
+        display.scrollLeft = display.scrollWidth;
+    }
+
+    function appendValue(value) {
+        expression += value;
+        updateDisplay();
+    }
+
+    function clearAll() {
+        expression = "";
+        updateDisplay();
+    }
+
+    function formatNumber(value) {
+        if (!Number.isFinite(value)) {
+            throw new Error("계산할 수 없는 값입니다.");
+        }
+
+        if (Math.abs(value) < 1e-12) {
+            value = 0;
+        }
+
+        return Number(value.toPrecision(12)).toString();
+    }
+
+    function factorial(n) {
+        if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+            throw new Error("팩토리얼은 0 이상의 정수만 사용할 수 있습니다.");
+        }
+
+        if (n > 170) {
+            throw new Error("값이 너무 큽니다.");
+        }
+
+        let result = 1;
+
+        for (let i = 2; i <= n; i++) {
+            result *= i;
+        }
+
+        return result;
+    }
+
+    function toRadians(value) {
+        return angleMode === "DEG"
+            ? value * Math.PI / 180
+            : value;
+    }
+
+    function fromAngle(value) {
+        return angleMode === "DEG"
+            ? value * 180 / Math.PI
+            : value;
+    }
+
+    function sin(value) {
+        return inverseMode
+            ? fromAngle(Math.asin(value))
+            : Math.sin(toRadians(value));
+    }
+
+    function cos(value) {
+        return inverseMode
+            ? fromAngle(Math.acos(value))
+            : Math.cos(toRadians(value));
+    }
+
+    function tan(value) {
+        return inverseMode
+            ? fromAngle(Math.atan(value))
+            : Math.tan(toRadians(value));
+    }
+
+    /*
+     * 공학용 계산식 파서
+     *
+     * 지원:
+     * + - * / ^
+     * 괄호
+     * sin cos tan
+     * ln log sqrt
+     * factorial !
+     * %
+     * π
+     * e
+     * 과학적 표기법 1e3
+     */
+
+    function tokenize(input) {
+
+        const tokens = [];
+        let i = 0;
+
+        while (i < input.length) {
+
+            const char = input[i];
+
+            if (/\s/.test(char)) {
+                i++;
+                continue;
+            }
+
+            if ("+-*/^()%!".includes(char)) {
+                tokens.push(char);
+                i++;
+                continue;
+            }
+
+            if (char === "π") {
+                tokens.push("PI");
+                i++;
+                continue;
+            }
+
+            if (char === "e") {
+
+                const previous = input[i - 1];
+
+                if (previous && /[0-9.]/.test(previous)) {
+                    tokens.push("e");
+                } else {
+                    tokens.push("E");
+                }
+
+                i++;
+                continue;
+            }
+
+            if (/[0-9.]/.test(char)) {
+
+                let number = "";
+
+                while (i < input.length && /[0-9.]/.test(input[i])) {
+                    number += input[i];
+                    i++;
+                }
+
+                if (input[i] === "e") {
+
+                    number += "e";
+                    i++;
+
+                    if (input[i] === "+" || input[i] === "-") {
+                        number += input[i];
+                        i++;
+                    }
+
+                    while (i < input.length && /[0-9]/.test(input[i])) {
+                        number += input[i];
+                        i++;
+                    }
+                }
+
+                if ((number.match(/\./g) || []).length > 1) {
+                    throw new Error("숫자 형식이 올바르지 않습니다.");
+                }
+
+                const parsed = Number(number);
+
+                if (!Number.isFinite(parsed)) {
+                    throw new Error("숫자 형식이 올바르지 않습니다.");
+                }
+
+                tokens.push(parsed);
+                continue;
+            }
+
+            if (/[a-zA-Z]/.test(char)) {
+
+                let name = "";
+
+                while (i < input.length && /[a-zA-Z]/.test(input[i])) {
+                    name += input[i];
+                    i++;
+                }
+
+                tokens.push(name.toLowerCase());
+                continue;
+            }
+
+            throw new Error("인식할 수 없는 문자입니다.");
+        }
+
+        return tokens;
+    }
+
+    function evaluate(input) {
+
+        let tokens = tokenize(input);
+        let position = 0;
+
+        function peek() {
+            return tokens[position];
+        }
+
+        function consume() {
+            return tokens[position++];
+        }
+
+        function parseExpression() {
+
+            let value = parseTerm();
+
+            while (peek() === "+" || peek() === "-") {
+
+                const operator = consume();
+                const right = parseTerm();
+
+                if (operator === "+") {
+                    value += right;
+                } else {
+                    value -= right;
+                }
+            }
+
+            return value;
+        }
+
+        function parseTerm() {
+
+            let value = parsePower();
+
+            while (peek() === "*" || peek() === "/") {
+
+                const operator = consume();
+                const right = parsePower();
+
+                if (operator === "*") {
+                    value *= right;
+                } else {
+
+                    if (right === 0) {
+                        throw new Error("0으로 나눌 수 없습니다.");
+                    }
+
+                    value /= right;
+                }
+            }
+
+            return value;
+        }
+
+        function parsePower() {
+
+            let value = parseUnary();
+
+            if (peek() === "^") {
+
+                consume();
+
+                const exponent = parsePower();
+                value = Math.pow(value, exponent);
+            }
+
+            return value;
+        }
+
+        function parseUnary() {
+
+            if (peek() === "+") {
+                consume();
+                return parseUnary();
+            }
+
+            if (peek() === "-") {
+                consume();
+                return -parseUnary();
+            }
+
+            return parsePostfix();
+        }
+
+        function parsePostfix() {
+
+            let value = parsePrimary();
+
+            while (peek() === "!" || peek() === "%") {
+
+                const operator = consume();
+
+                if (operator === "!") {
+                    value = factorial(value);
+                }
+
+                if (operator === "%") {
+                    value = value / 100;
+                }
+            }
+
+            return value;
+        }
+
+        function parsePrimary() {
+
+            const token = peek();
+
+            if (typeof token === "number") {
+                consume();
+                return token;
+            }
+
+            if (token === "PI") {
+                consume();
+                return Math.PI;
+            }
+
+            if (token === "E") {
+                consume();
+                return Math.E;
+            }
+
+            if (token === "(") {
+
+                consume();
+
+                const value = parseExpression();
+
+                if (peek() !== ")") {
+                    throw new Error("괄호를 확인해주세요.");
+                }
+
+                consume();
+
+                return value;
+            }
+
+            const functions = [
+                "sin",
+                "cos",
+                "tan",
+                "ln",
+                "log",
+                "sqrt"
+            ];
+
+            if (functions.includes(token)) {
+
+                consume();
+
+                let value;
+
+                if (peek() === "(") {
+
+                    consume();
+                    value = parseExpression();
+
+                    if (peek() !== ")") {
+                        throw new Error("괄호를 확인해주세요.");
+                    }
+
+                    consume();
+
+                } else {
+                    value = parsePrimary();
+                }
+
+                switch (token) {
+
+                    case "sin":
+                        return sin(value);
+
+                    case "cos":
+                        return cos(value);
+
+                    case "tan":
+                        return tan(value);
+
+                    case "ln":
+
+                        if (value <= 0) {
+                            throw new Error("ln은 0보다 큰 값만 사용할 수 있습니다.");
+                        }
+
+                        return Math.log(value);
+
+                    case "log":
+
+                        if (value <= 0) {
+                            throw new Error("log는 0보다 큰 값만 사용할 수 있습니다.");
+                        }
+
+                        return Math.log10(value);
+
+                    case "sqrt":
+
+                        if (value < 0) {
+                            throw new Error("음수의 제곱근은 계산할 수 없습니다.");
+                        }
+
+                        return Math.sqrt(value);
+                }
+            }
+
+            throw new Error("계산식을 확인해주세요.");
+        }
+
+        const result = parseExpression();
+
+        if (position < tokens.length) {
+            throw new Error("계산식을 확인해주세요.");
+        }
+
+        if (!Number.isFinite(result)) {
+            throw new Error("계산 결과가 너무 큽니다.");
+        }
+
+        return result;
+    }
+
+    function calculate() {
+
+        if (!expression) {
+            return;
+        }
+
+        try {
+
+            const originalExpression = expression;
+
+            const result = evaluate(expression);
+
+            const formatted = formatNumber(result);
+
+            addHistory(originalExpression, formatted);
+
+            lastAnswer = result;
+            expression = formatted;
+
+            updateDisplay();
+
+        } catch (error) {
+
+            display.textContent = error.message;
+
+            setTimeout(() => {
+
+                if (display.textContent === error.message) {
+                    updateDisplay();
+                }
+
+            }, 1600);
+        }
+    }
+
+    function addHistory(exp, result) {
+
+        history.unshift({
+            expression: exp,
+            result: result
+        });
+
+        if (history.length > 20) {
+            history.pop();
+        }
+
+        renderHistory();
+    }
+
+    function renderHistory() {
+
+        if (history.length === 0) {
+
+            historyList.textContent = "계산 기록이 없습니다.";
+            return;
+        }
+
+        historyList.innerHTML = "";
+
+        history.forEach(item => {
+
+            const div = document.createElement("div");
+
+            div.className = "history-item";
+
+            div.innerHTML = `
+                <div class="history-expression">${escapeHTML(item.expression)}</div>
+                <div class="history-result">= ${escapeHTML(item.result)}</div>
+            `;
+
+            div.addEventListener("click", () => {
+
+                expression = item.result;
+                updateDisplay();
+                historyPanel.classList.remove("show");
+
+            });
+
+            historyList.appendChild(div);
+        });
+    }
+
+    function escapeHTML(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function insertFunction(name) {
+
+        expression += name + "(";
+        updateDisplay();
+    }
+
+    function handleAction(action) {
+
+        switch (action) {
+
+            case "clear":
+                clearAll();
+                break;
+
+            case "equals":
+                calculate();
+                break;
+
+            case "factorial":
+
+                if (!expression) {
+                    expression = "0";
+                }
+
+                expression += "!";
+                updateDisplay();
+
+                break;
+
+            case "percent":
+
+                if (!expression) {
+                    expression = "0";
+                }
+
+                expression += "%";
+                updateDisplay();
+
+                break;
+
+            case "sqrt":
+                insertFunction("sqrt");
+                break;
+
+            case "sin":
+                insertFunction("sin");
+                break;
+
+            case "cos":
+                insertFunction("cos");
+                break;
+
+            case "tan":
+                insertFunction("tan");
+                break;
+
+            case "ln":
+                insertFunction("ln");
+                break;
+
+            case "log":
+                insertFunction("log");
+                break;
+
+            case "ans":
+                expression += formatNumber(lastAnswer);
+                updateDisplay();
+                break;
+
+            case "deg":
+                angleMode = "DEG";
+                document.querySelector('[data-action="deg"]').style.color = "#356bdc";
+                document.querySelector('[data-action="rad"]').style.color = "#111";
+                break;
+
+            case "rad":
+                angleMode = "RAD";
+                document.querySelector('[data-action="rad"]').style.color = "#356bdc";
+                document.querySelector('[data-action="deg"]').style.color = "#111";
+                break;
+
+            case "inv":
+
+                inverseMode = !inverseMode;
+
+                const invButton = document.querySelector('[data-action="inv"]');
+
+                invButton.style.background = inverseMode
+                    ? "#cbdcff"
+                    : "#e3edff";
+
+                break;
+
+            case "exp":
+
+                if (!expression) {
+                    expression = "1";
+                }
+
+                expression += "e";
+                updateDisplay();
+
+                break;
+        }
+    }
+
+    buttons.forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const value = button.dataset.value;
+            const action = button.dataset.action;
+
+            if (value !== undefined) {
+
+                if (value === "pi") {
+                    expression += "π";
+                } else {
+                    expression += value;
+                }
+
+                updateDisplay();
+                return;
+            }
+
+            if (action) {
+                handleAction(action);
+            }
+        });
+    });
+
+    historyButton.addEventListener("click", () => {
+
+        historyPanel.classList.toggle("show");
+
+    });
+
+    document.addEventListener("click", event => {
+
+        if (
+            !historyPanel.contains(event.target) &&
+            event.target !== historyButton
+        ) {
+            historyPanel.classList.remove("show");
+        }
+
+    });
+
+    document.addEventListener("keydown", event => {
+
+        const key = event.key;
+
+        if (/[0-9]/.test(key)) {
+            expression += key;
+            updateDisplay();
+            return;
+        }
+
+        if ("+-*/().^".includes(key)) {
+            expression += key;
+            updateDisplay();
+            return;
+        }
+
+        if (key === "Enter" || key === "=") {
+            calculate();
+            return;
+        }
+
+        if (key === "Escape") {
+            clearAll();
+            return;
+        }
+
+        if (key === "Backspace") {
+            expression = expression.slice(0, -1);
+            updateDisplay();
+        }
+    });
+
+    updateDisplay();
+
+})();
+</script>
+
+</body>
+</html>
